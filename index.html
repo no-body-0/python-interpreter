@@ -47,6 +47,11 @@
       main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
       #right { border-left: none; border-top: 1px solid var(--border); }
     }
+    /* Inline input aesthetics */
+    #output input {
+      background: #000; color: #0f0; border: none; width: 100%;
+      font: inherit; padding: 4px 0;
+    }
   </style>
 </head>
 <body>
@@ -129,7 +134,6 @@ with open("data.txt") as f:
     print(f.read())`,
       pandas: `# Install pandas via micropip (Pyodide-compatible)
 import micropip, sys
-# Note: network is allowed within Pyodide for package fetch; first install may take time
 await micropip.install("pandas==2.1.4")
 import pandas as pd, io
 csv = "a,b\\n1,2\\n3,4"
@@ -162,22 +166,55 @@ print(df)
     const loadBtn = document.getElementById('loadBtn');
     const shareBtn = document.getElementById('shareBtn');
 
+    // Utility: scroll to bottom of output
+    function scrollOutput() {
+      outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
     // Load Pyodide
     let pyodide;
     (async () => {
       pyodide = await loadPyodide();
       statusEl.textContent = "Ready";
-      // Patch input() to use browser prompt
+
+      // Patch input() to use inline input in output console (terminal-style)
+      pyodide.globals.set("js_input", async (promptText="") => {
+        return await new Promise(resolve => {
+          // prompt line with >>>
+          const line = document.createElement("div");
+          line.textContent = (promptText ? promptText + " " : "") + ">>> ";
+          outputEl.appendChild(line);
+
+          // input field
+          const inputBox = document.createElement("input");
+          outputEl.appendChild(inputBox);
+          inputBox.focus();
+          scrollOutput();
+
+          // handle Enter
+          inputBox.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+              const val = inputBox.value;
+              const echo = document.createElement("div");
+              echo.textContent = ">>> " + val;
+              outputEl.replaceChild(echo, inputBox);
+              scrollOutput();
+              resolve(val);
+            }
+          });
+        });
+      });
+
       pyodide.runPython(`
 import builtins
-def js_input(prompt=""):
-    from js import prompt as js_prompt
-    return js_prompt(prompt) or ""
-builtins.input = js_input
+from js import js_input
+def input(prompt=""):
+    return js_input(prompt)
+builtins.input = input
 `);
     })();
 
-    // Capture stdout/stderr for nicer console output
+    // Capture stdout/stderr
     function captureIO() {
       pyodide.runPython(`
 import sys, io
@@ -194,10 +231,15 @@ sys.stderr = io.StringIO()
     // Run handler
     async function runCode() {
       if (!pyodide) return;
+
+      // clear output each run
+      outputEl.textContent = "";
+      scrollOutput();
+
       statusEl.textContent = "Running…";
-      outputEl.textContent += ">>> Running\n";
       captureIO();
       const code = editor.getValue();
+
       try {
         await pyodide.runPythonAsync(code);
       } catch (e) {
@@ -206,14 +248,17 @@ sys.stderr = io.StringIO()
         const { out, err } = readIO();
         if (out) outputEl.textContent += out;
         if (err) outputEl.textContent += err;
-        outputEl.scrollTop = outputEl.scrollHeight;
+        scrollOutput();
         statusEl.textContent = "Ready";
       }
     }
 
     // UI events
     runBtn.addEventListener('click', runCode);
-    clearBtn.addEventListener('click', () => outputEl.textContent = "");
+    clearBtn.addEventListener('click', () => {
+      outputEl.textContent = "";
+      scrollOutput();
+    });
 
     examplesSel.addEventListener('change', async (e) => {
       const val = e.target.value;
@@ -263,6 +308,7 @@ sys.stderr = io.StringIO()
       const text = await file.text();
       pyodide.FS.writeFile(file.name, text);
       outputEl.textContent += `>>> Uploaded ${file.name} to virtual FS\\n`;
+      scrollOutput();
     });
     */
   </script>
