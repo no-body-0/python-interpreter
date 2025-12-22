@@ -1,22 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Python IDE (Pyodide)</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Python Online Compiler</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #238636;
+      --accent-hover: #2ea043;
+      --btn: #30363d;
+      --warning: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, Segoe UI, Arial; }
+    header {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 8px;
+      align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--panel);
+    }
+    .brand { font-weight: 600; }
+    .toolbar { display: flex; gap: 8px; align-items: center; }
+    select, button {
+      background: var(--btn); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 10px; font-size: 14px; cursor: pointer;
+    }
+    button.run { background: var(--accent); border-color: var(--accent); }
+    button.run:hover { background: var(--accent-hover); }
+    button.danger { background: var(--warning); border-color: var(--warning); }
+    main {
+      display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 60px);
+    }
+    #editor { height: 100%; }
+    #right { border-left: 1px solid var(--border); display: grid; grid-template-rows: auto 1fr; }
+    #outHeader { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    #output {
+      padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap; overflow: auto; background: #0b0e12;
+    }
+    .status { font-size: 12px; color: var(--muted); }
+    .kbd { background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 12px; }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+      #right { border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
 </head>
 <body>
   <header>
-    <h2>Python IDE</h2>
-    <button onclick="runCode()">Run ▶</button>
-    <button onclick="newFile()">New File</button>
-    <button onclick="saveFile()">Save</button>
-    <button onclick="loadFile()">Load</button>
+    <div class="brand">Python Online Compiler</div>
+    <div class="toolbar">
+      <select id="examples">
+        <option value="">Examples…</option>
+        <option value="hello">Hello world</option>
+        <option value="input">Input echo</option>
+        <option value="fibonacci">Fibonacci</option>
+        <option value="factorial">Factorial</option>
+        <option value="palindrome">Palindrome check</option>
+        <option value="fileio">File I/O demo</option>
+        <option value="pandas">Pandas CSV read (Pyodide)</option>
+      </select>
+      <button id="saveBtn" title="Save to browser">Save</button>
+      <button id="loadBtn" title="Load from browser">Load</button>
+      <button id="shareBtn" title="Copy shareable link">Share</button>
+    </div>
+    <div class="toolbar">
+      <button class="run" id="runBtn">Run ▶</button>
+      <button id="clearBtn">Clear output</button>
+      <span class="status" id="status">Initializing…</span>
+    </div>
   </header>
-  <nav id="tabs"></nav>
+
   <main>
     <div id="editor"></div>
-    <pre id="output"></pre>
+    <div id="right">
+      <div id="outHeader">
+        <div>Output</div>
+        <div class="status">Press <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to run</div>
+      </div>
+      <div id="output"></div>
+    </div>
   </main>
 
   <!-- Ace Editor -->
@@ -24,101 +90,181 @@
   <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-min-noconflict/mode-python.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-min-noconflict/theme-monokai.js"></script>
 
-  <!-- Pyodide -->
+  <!-- Pyodide (real CPython in WebAssembly) -->
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
 
   <script>
-    let pyodide;
-    let files = {};
-    let currentFile = "main.py";
-
+    // Editor setup
     const editor = ace.edit("editor", {
       mode: "ace/mode/python",
       theme: "ace/theme/monokai",
       fontSize: 14,
       showPrintMargin: false,
+      wrap: true
     });
-    editor.setValue('print("Hello from IDE!")');
 
+    // Examples catalog
+    const EXAMPLES = {
+      hello: `print("Hello, world!")`,
+      input: `name = input("Enter your name: ")
+print("Hello,", name)`,
+      fibonacci: `def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+print("fib(10) =", fib(10))`,
+      factorial: `def fact(n):
+    return 1 if n <= 1 else n * fact(n-1)
+
+print("factorial(6) =", fact(6))`,
+      palindrome: `s = input("Enter text: ").strip()
+print("Palindrome?" , s == s[::-1])`,
+      fileio: `# File I/O in Pyodide's virtual FS
+with open("data.txt", "w") as f:
+    f.write("line1\\nline2\\nline3")
+with open("data.txt") as f:
+    print("File contents:")
+    print(f.read())`,
+      pandas: `# Install pandas via micropip (Pyodide-compatible)
+import micropip, sys
+# Note: network is allowed within Pyodide for package fetch; first install may take time
+await micropip.install("pandas==2.1.4")
+import pandas as pd, io
+csv = "a,b\\n1,2\\n3,4"
+df = pd.read_csv(io.StringIO(csv))
+print(df)
+`
+    };
+
+    // Load initial code or from URL hash
+    function decodeHash() {
+      try {
+        const h = location.hash.slice(1);
+        if (!h) return null;
+        return decodeURIComponent(escape(atob(h)));
+      } catch { return null; }
+    }
+    function encodeHash(code) {
+      location.hash = btoa(unescape(encodeURIComponent(code)));
+    }
+
+    const initial = decodeHash() || EXAMPLES.hello;
+    editor.session.setValue(initial);
+
+    const outputEl = document.getElementById('output');
+    const statusEl = document.getElementById('status');
+    const runBtn = document.getElementById('runBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const examplesSel = document.getElementById('examples');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const shareBtn = document.getElementById('shareBtn');
+
+    // Load Pyodide
+    let pyodide;
     (async () => {
       pyodide = await loadPyodide();
-      document.getElementById("output").textContent = "Pyodide ready!";
-    })();
-
-    // Patch input() to use browser prompt
-    function patchInput() {
+      statusEl.textContent = "Ready";
+      // Patch input() to use browser prompt
       pyodide.runPython(`
 import builtins
 def js_input(prompt=""):
     from js import prompt as js_prompt
-    return js_prompt(prompt)
+    return js_prompt(prompt) or ""
 builtins.input = js_input
 `);
+    })();
+
+    // Capture stdout/stderr for nicer console output
+    function captureIO() {
+      pyodide.runPython(`
+import sys, io
+sys.stdout = io.StringIO()
+sys.stderr = io.StringIO()
+`);
+    }
+    function readIO() {
+      const out = pyodide.runPython('sys.stdout.getvalue()');
+      const err = pyodide.runPython('sys.stderr.getvalue()');
+      return { out, err };
     }
 
+    // Run handler
     async function runCode() {
+      if (!pyodide) return;
+      statusEl.textContent = "Running…";
+      outputEl.textContent += ">>> Running\n";
+      captureIO();
       const code = editor.getValue();
       try {
-        patchInput();
-        let result = await pyodide.runPythonAsync(code);
-        document.getElementById("output").textContent = result || "";
-      } catch (err) {
-        document.getElementById("output").textContent = err;
+        await pyodide.runPythonAsync(code);
+      } catch (e) {
+        outputEl.textContent += (e + "\\n");
+      } finally {
+        const { out, err } = readIO();
+        if (out) outputEl.textContent += out;
+        if (err) outputEl.textContent += err;
+        outputEl.scrollTop = outputEl.scrollHeight;
+        statusEl.textContent = "Ready";
       }
     }
 
-    // File management
-    function renderTabs() {
-      const tabs = document.getElementById("tabs");
-      tabs.innerHTML = "";
-      for (let fname in files) {
-        const tab = document.createElement("button");
-        tab.textContent = fname;
-        tab.onclick = () => switchFile(fname);
-        if (fname === currentFile) tab.style.background = "#28a745";
-        tabs.appendChild(tab);
-      }
-    }
+    // UI events
+    runBtn.addEventListener('click', runCode);
+    clearBtn.addEventListener('click', () => outputEl.textContent = "");
 
-    function newFile() {
-      const fname = prompt("Enter new file name:", "script.py");
-      if (fname) {
-        files[fname] = "";
-        currentFile = fname;
-        editor.setValue("");
-        renderTabs();
-      }
-    }
+    examplesSel.addEventListener('change', async (e) => {
+      const val = e.target.value;
+      if (!val) return;
+      editor.session.setValue(EXAMPLES[val]);
+      e.target.value = "";
+    });
 
-    function switchFile(fname) {
-      files[currentFile] = editor.getValue();
-      currentFile = fname;
-      editor.setValue(files[fname]);
-      renderTabs();
-    }
-
-    function saveFile() {
-      files[currentFile] = editor.getValue();
-      localStorage.setItem("pythonIDE", JSON.stringify(files));
-      alert("Files saved!");
-    }
-
-    function loadFile() {
-      const saved = localStorage.getItem("pythonIDE");
+    // Save/load to localStorage
+    const LS_KEY = "programiz_like_code";
+    saveBtn.addEventListener('click', () => {
+      localStorage.setItem(LS_KEY, editor.getValue());
+      statusEl.textContent = "Saved";
+      setTimeout(() => statusEl.textContent = "Ready", 1200);
+    });
+    loadBtn.addEventListener('click', () => {
+      const saved = localStorage.getItem(LS_KEY);
       if (saved) {
-        files = JSON.parse(saved);
-        currentFile = Object.keys(files)[0];
-        editor.setValue(files[currentFile]);
-        renderTabs();
-        alert("Files loaded!");
+        editor.session.setValue(saved);
+        statusEl.textContent = "Loaded";
       } else {
-        alert("No saved files found.");
+        statusEl.textContent = "No saved code";
       }
-    }
+      setTimeout(() => statusEl.textContent = "Ready", 1200);
+    });
 
-    // Initialize with one file
-    files[currentFile] = editor.getValue();
-    renderTabs();
+    // Shareable link (URL hash)
+    shareBtn.addEventListener('click', async () => {
+      encodeHash(editor.getValue());
+      await navigator.clipboard.writeText(location.href);
+      statusEl.textContent = "Link copied";
+      setTimeout(() => statusEl.textContent = "Ready", 1200);
+    });
+
+    // Ctrl+Enter to run
+    editor.commands.addCommand({
+      name: 'run',
+      bindKey: {win: 'Ctrl-Enter', mac: 'Command-Enter'},
+      exec: runCode
+    });
+
+    // Optional: File upload into virtual FS
+    // To add an upload button, uncomment below and add an <input type="file" id="fileIn"> to header.
+    /*
+    document.getElementById('fileIn').addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      const text = await file.text();
+      pyodide.FS.writeFile(file.name, text);
+      outputEl.textContent += `>>> Uploaded ${file.name} to virtual FS\\n`;
+    });
+    */
   </script>
 </body>
 </html>
