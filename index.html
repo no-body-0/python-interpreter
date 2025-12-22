@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Online Python Interpreter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h2>Python Interpreter (Pyodide)</h2>
+    <button onclick="runCode()">Run ▶</button>
+  </header>
+  <main>
+    <div id="editor"></div>
+    <pre id="output"></pre>
+  </main>
+
+  <!-- Ace Editor -->
+  <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-min-noconflict/ace.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-min-noconflict/mode-python.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-min-noconflict/theme-monokai.js"></script>
+
+  <!-- Pyodide -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+
+  <script>
+    const editor = ace.edit("editor", {
+      mode: "ace/mode/python",
+      theme: "ace/theme/monokai",
+      fontSize: 14,
+      showPrintMargin: false,
+    });
+    editor.setValue('print("Hello, Python from GitHub Pages!")');
+
+    let pyodide;
+    (async () => {
+      pyodide = await loadPyodide();
+      document.getElementById("output").textContent = "Pyodide ready!";
+    })();
+
+    async function runCode() {
+      const code = editor.getValue();
+      try {
+        let result = await pyodide.runPythonAsync(code);
+        document.getElementById("output").textContent = result || "";
+      } catch (err) {
+        document.getElementById("output").textContent = err;
+      }
+    }
+  </script>
+</body>
+</html>
