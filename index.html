@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Online Python Interpreter</title>
+  <title>Python IDE (Pyodide)</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h2>Python Interpreter (Pyodide)</h2>
+    <h2>Python IDE</h2>
     <button onclick="runCode()">Run ▶</button>
+    <button onclick="newFile()">New File</button>
+    <button onclick="saveFile()">Save</button>
+    <button onclick="loadFile()">Load</button>
   </header>
+  <nav id="tabs"></nav>
   <main>
     <div id="editor"></div>
     <pre id="output"></pre>
@@ -24,29 +28,97 @@
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
 
   <script>
+    let pyodide;
+    let files = {};
+    let currentFile = "main.py";
+
     const editor = ace.edit("editor", {
       mode: "ace/mode/python",
       theme: "ace/theme/monokai",
       fontSize: 14,
       showPrintMargin: false,
     });
-    editor.setValue('print("Hello, Python from GitHub Pages!")');
+    editor.setValue('print("Hello from IDE!")');
 
-    let pyodide;
     (async () => {
       pyodide = await loadPyodide();
       document.getElementById("output").textContent = "Pyodide ready!";
     })();
 
+    // Patch input() to use browser prompt
+    function patchInput() {
+      pyodide.runPython(`
+import builtins
+def js_input(prompt=""):
+    from js import prompt as js_prompt
+    return js_prompt(prompt)
+builtins.input = js_input
+`);
+    }
+
     async function runCode() {
       const code = editor.getValue();
       try {
+        patchInput();
         let result = await pyodide.runPythonAsync(code);
         document.getElementById("output").textContent = result || "";
       } catch (err) {
         document.getElementById("output").textContent = err;
       }
     }
+
+    // File management
+    function renderTabs() {
+      const tabs = document.getElementById("tabs");
+      tabs.innerHTML = "";
+      for (let fname in files) {
+        const tab = document.createElement("button");
+        tab.textContent = fname;
+        tab.onclick = () => switchFile(fname);
+        if (fname === currentFile) tab.style.background = "#28a745";
+        tabs.appendChild(tab);
+      }
+    }
+
+    function newFile() {
+      const fname = prompt("Enter new file name:", "script.py");
+      if (fname) {
+        files[fname] = "";
+        currentFile = fname;
+        editor.setValue("");
+        renderTabs();
+      }
+    }
+
+    function switchFile(fname) {
+      files[currentFile] = editor.getValue();
+      currentFile = fname;
+      editor.setValue(files[fname]);
+      renderTabs();
+    }
+
+    function saveFile() {
+      files[currentFile] = editor.getValue();
+      localStorage.setItem("pythonIDE", JSON.stringify(files));
+      alert("Files saved!");
+    }
+
+    function loadFile() {
+      const saved = localStorage.getItem("pythonIDE");
+      if (saved) {
+        files = JSON.parse(saved);
+        currentFile = Object.keys(files)[0];
+        editor.setValue(files[currentFile]);
+        renderTabs();
+        alert("Files loaded!");
+      } else {
+        alert("No saved files found.");
+      }
+    }
+
+    // Initialize with one file
+    files[currentFile] = editor.getValue();
+    renderTabs();
   </script>
 </body>
 </html>
