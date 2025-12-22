@@ -1,0 +1,36 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+header {
+  background: #333;
+  color: #fff;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+button {
+  background: #28a745;
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+main {
+  flex: 1;
+  display: flex;
+}
+#editor {
+  flex: 1;
+}
+#output {
+  flex: 1;
+  background: #111;
+  color: #0f0;
+  padding: 10px;
+  overflow: auto;
+  font-family: monospace;
+}
