@@ -10,14 +10,21 @@ header {
   color: #fff;
   padding: 10px;
   display: flex;
-  justify-content: space-between;
+  gap: 10px;
 }
 button {
-  background: #28a745;
+  background: #444;
   border: none;
   color: #fff;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
+}
+button:hover {
+  background: #28a745;
+}
+nav#tabs {
+  background: #222;
+  padding: 5px;
 }
 main {
   flex: 1;
