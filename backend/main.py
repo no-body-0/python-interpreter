@@ -9,7 +9,7 @@ import os as sysos
 app = FastAPI()
 
 # CORS for frontend URL
-FRONTEND_URL = "https://no-body-0.github.io/python-interpreter/"
+FRONTEND_URL = "https://no-body-0.github.io/python-interpreter"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],
