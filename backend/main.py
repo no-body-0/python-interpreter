@@ -14,7 +14,7 @@ app = FastAPI()
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or restrict to your domain
+    allow_origins=["https://no-body-0.github.io/python-interpreter/"],  # Or restrict to your domain
     allow_methods=["*"],
     allow_headers=["*"],
 )
