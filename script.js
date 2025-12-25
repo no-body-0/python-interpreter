@@ -1,55 +1,34 @@
-// CodeMirror editor
-const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
-    mode: "python",
-    theme: "dracula",
-    lineNumbers: true
-});
-
-// -------------------- WebSocket live run --------------------
+const editor = document.getElementById("editor");
+const output = document.getElementById("output");
 let ws;
 
-function run() {
-    const output = document.getElementById("output");
+function runCode() {
     output.textContent = "";
-
-    // Open WebSocket
-    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com/ws/run");
+    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com//ws/run");
 
     ws.onopen = () => {
         console.log("WebSocket connected!");
-
-        // Send code line by line
-        const code = editor.getValue();
-        code.split("\n").forEach(line => {
-            ws.send(line + "\n");
-        });
+        const code = editor.value;
+        code.split("\n").forEach(line => ws.send(line + "\n"));
+        ws.send("__exit__\n");  // signal end
     };
 
-    ws.onmessage = (e) => {
+    ws.onmessage = e => {
         output.textContent += e.data;
         output.scrollTop = output.scrollHeight;
     };
 
-    ws.onclose = () => {
-        console.log("WebSocket closed. Retrying in 1s...");
-        setTimeout(run, 1000);
-    };
-
-    ws.onerror = (err) => console.error("WebSocket error", err);
+    ws.onerror = e => console.error("WS error", e);
+    ws.onclose = () => console.log("WebSocket closed");
 }
 
-
-
-// -------------------- Share code --------------------
-function share() {
-    fetch("https://https://python-interpreter-t34q.onrender.com/share", {
+function shareCode() {
+    fetch("https://https://python-interpreter-t34q.onrender.com//share", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ code: editor.getValue() })
+        body: JSON.stringify({code: editor.value})
     })
     .then(res => res.json())
-    .then(data => {
-        navigator.clipboard.writeText(data.raw);
-        alert("Link copied: " + data.raw);
-    });
+    .then(data => alert("Gist URL: " + data.url))
+    .catch(err => console.error(err));
 }
