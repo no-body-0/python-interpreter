@@ -10,13 +10,12 @@ from pydantic import BaseModel
 from github import Github
 from fastapi.responses import HTMLResponse
 
+app = FastAPI()
+
 @app.get("/")
 async def root():
     return HTMLResponse("<h2>Python IDE Backend Running</h2>")
-
-
-app = FastAPI()
-
+    
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
