@@ -30,11 +30,15 @@ function run() {
         output.scrollTop = output.scrollHeight;
     };
 
-    ws.onclose = () => console.log("WebSocket closed");
+    ws.onclose = () => {
+        console.log("WebSocket closed. Retrying in 1s...");
+        setTimeout(run, 1000);
+    };
+
     ws.onerror = (err) => console.error("WebSocket error", err);
 }
 
-}
+
 
 // -------------------- Share code --------------------
 function share() {
