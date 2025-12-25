@@ -13,7 +13,7 @@ function run() {
     output.textContent = "";
 
     // Open WebSocket
-    ws = new WebSocket("wss://YOUR_BACKEND_URL/ws/run");
+    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com/ws/run");
 
     ws.onopen = () => {
         console.log("WebSocket connected!");
