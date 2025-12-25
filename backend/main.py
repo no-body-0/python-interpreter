@@ -45,6 +45,7 @@ def share_code(data: Code):
 @app.websocket("/ws/run")
 async def run_terminal(ws: WebSocket):
     await ws.accept()
+    import pty, os
     pid, fd = pty.fork()
     if pid == 0:
         os.execvp("python", ["python"])
