@@ -23,7 +23,7 @@ function runCode() {
 }
 
 function shareCode() {
-    fetch("https://https://python-interpreter-t34q.onrender.com//share", {
+    fetch("https://python-interpreter-t34q.onrender.com//share", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({code: editor.value})
