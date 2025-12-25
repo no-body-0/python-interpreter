@@ -4,7 +4,7 @@ let ws;
 
 function runCode() {
     output.textContent = "";
-    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com//ws/run");
+    ws = new WebSocket("wss://python-interpreter-t34q.onrender.com//ws/run");
 
     ws.onopen = () => {
         console.log("WebSocket connected!");
