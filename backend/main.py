@@ -8,6 +8,12 @@ from fastapi import FastAPI, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from github import Github
+from fastapi.responses import HTMLResponse
+
+@app.get("/")
+async def root():
+    return HTMLResponse("<h2>Python IDE Backend Running</h2>")
+
 
 app = FastAPI()
 
