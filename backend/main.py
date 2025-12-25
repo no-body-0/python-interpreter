@@ -1,60 +1,43 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-import asyncio, pty, os, uuid, subprocess, shutil
-from github import Github
-import os as sysos
+from pydantic import BaseModel
+import subprocess, tempfile, os
 
-# FastAPI app
 app = FastAPI()
 
-# CORS for frontend URL
-FRONTEND_URL = "https://no-body-0.github.io/python-interpreter/"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=["*"],
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-# Root route
-@app.api_route("/", methods=["GET", "HEAD"])
-async def root():
-    return HTMLResponse("<h2>Python IDE Backend Running</h2>")
+class RunRequest(BaseModel):
+    code: str
+    stdin: str = ""
 
-# WebSocket for live code execution
-@app.websocket("/ws/run")
-async def run_terminal(ws: WebSocket):
-    await ws.accept()
-    pid, fd = pty.fork()
-    if pid == 0:
-        os.execvp("python", ["python"])
-    try:
-        while True:
-            try:
-                data = await ws.receive_text()
-                if data.strip() == "__exit__":
-                    break
-                os.write(fd, data.encode())
-                await asyncio.sleep(0.01)
-                try:
-                    output = os.read(fd, 1024).decode(errors="ignore")
-                    await ws.send_text(output)
-                except OSError:
-                    break
-            except Exception:
-                break
-    except:
-        pass
+@app.get("/")
+def root():
+    return {"status": "Python IDE backend running"}
 
-# Share code via Gist
-@app.post("/share")
-async def share_code(code: str):
-    token = sysos.environ.get("GITHUB_TOKEN")
-    g = Github(token)
-    gist = g.get_user().create_gist(
-        public=True,
-        files={"snippet.py": {"content": code}},
-        description="Shared from Python IDE"
-    )
-    return {"url": gist.html_url}
+@app.post("/run")
+def run_code(req: RunRequest):
+    with tempfile.TemporaryDirectory() as tmp:
+        file_path = os.path.join(tmp, "main.py")
+        with open(file_path, "w") as f:
+            f.write(req.code)
+
+        try:
+            result = subprocess.run(
+                ["python", file_path],
+                input=req.stdin,
+                text=True,
+                capture_output=True,
+                timeout=5
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+        except subprocess.TimeoutExpired:
+            return {"stdout": "", "stderr": "Execution timed out"}
