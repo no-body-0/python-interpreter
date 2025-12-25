@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return HTMLResponse("<h2>Python IDE Backend Running</h2>")
     
