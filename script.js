@@ -7,17 +7,22 @@ const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
 
 // -------------------- WebSocket live run --------------------
 let ws;
+
 function run() {
     const output = document.getElementById("output");
     output.textContent = "";
-    if (ws) ws.close();
 
-    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com/ws/run");
+    // Open WebSocket
+    ws = new WebSocket("wss://YOUR_BACKEND_URL/ws/run");
 
     ws.onopen = () => {
-        const code = editor.getValue();
+        console.log("WebSocket connected!");
+
         // Send code line by line
-        code.split("\n").forEach(line => ws.send(line + "\n"));
+        const code = editor.getValue();
+        code.split("\n").forEach(line => {
+            ws.send(line + "\n");
+        });
     };
 
     ws.onmessage = (e) => {
@@ -25,7 +30,10 @@ function run() {
         output.scrollTop = output.scrollHeight;
     };
 
-    ws.onclose = () => console.log("Execution ended");
+    ws.onclose = () => console.log("WebSocket closed");
+    ws.onerror = (err) => console.error("WebSocket error", err);
+}
+
 }
 
 // -------------------- Share code --------------------
