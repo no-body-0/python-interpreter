@@ -12,7 +12,7 @@ function run() {
     output.textContent = "";
     if (ws) ws.close();
 
-    ws = new WebSocket("wss://YOUR_BACKEND_DOMAIN/ws/run");
+    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com/ws/run");
 
     ws.onopen = () => {
         const code = editor.getValue();
@@ -30,7 +30,7 @@ function run() {
 
 // -------------------- Share code --------------------
 function share() {
-    fetch("https://YOUR_BACKEND_DOMAIN/share", {
+    fetch("https://https://python-interpreter-t34q.onrender.com/share", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ code: editor.getValue() })
