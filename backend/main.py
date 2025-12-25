@@ -42,23 +42,31 @@ def share_code(data: Code):
     return {"url": gist.html_url, "raw": list(gist.files.values())[0].raw_url}
 
 # -------------------- WebSocket live terminal --------------------
-@app.websocket("/ws/run")
-async def run_terminal(ws: WebSocket):
-    await ws.accept()
-    pid, fd = pty.fork()
-    if pid == 0:
-        os.execvp("python", ["python"])
-    try:
-        while True:
-            data = await ws.receive_text()
-            if data == "__exit__":
-                break
-            os.write(fd, data.encode())
-            await asyncio.sleep(0.01)
-            try:
-                output = os.read(fd, 1024).decode(errors="ignore")
-                await ws.send_text(output)
-            except OSError:
-                break
-    except:
-        pass
+let ws;
+
+function run() {
+    const output = document.getElementById("output");
+    output.textContent = "";
+
+    // Open WebSocket
+    ws = new WebSocket("wss://https://python-interpreter-t34q.onrender.com/ws/run");
+
+    ws.onopen = () => {
+        console.log("WebSocket connected!");
+
+        // Send code line by line
+        const code = editor.getValue();
+        code.split("\n").forEach(line => {
+            ws.send(line + "\n");
+        });
+    };
+
+    ws.onmessage = (e) => {
+        output.textContent += e.data;
+        output.scrollTop = output.scrollHeight;
+    };
+
+    ws.onclose = () => console.log("WebSocket closed");
+    ws.onerror = (err) => console.error("WebSocket error", err);
+}
+
